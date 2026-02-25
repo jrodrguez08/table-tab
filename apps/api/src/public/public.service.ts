@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { PrismaClient } from "@prisma/client";
-import { BillingService } from "../billing/billing.service";
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+import { BillingService } from '../billing/billing.service';
 
 const prisma = new PrismaClient();
 
@@ -13,10 +13,10 @@ export class PublicService {
       where: { publicCode, isActive: true },
     });
 
-    if (!qr) throw new NotFoundException("QR not found");
+    if (!qr) throw new NotFoundException('QR not found');
 
     const session = await prisma.tableSession.findFirst({
-      where: { tableId: qr.tableId, status: "OPEN" },
+      where: { tableId: qr.tableId, status: 'OPEN' },
       include: {
         tabs: true,
         adjustments: true,
@@ -29,8 +29,8 @@ export class PublicService {
       },
     });
 
-    if (!session) throw new NotFoundException("No open session for this table");
+    if (!session) throw new NotFoundException('No open session for this table');
 
-    return this.billingService.buildBill(session, "CRC");
+    return this.billingService.buildBill(session, 'CRC');
   }
 }
