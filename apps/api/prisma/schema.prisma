@@ -1,0 +1,250 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  DISABLED
+}
+
+enum SessionStatus {
+  OPEN
+  CLOSED
+  CANCELED
+}
+
+enum TabStatus {
+  OPEN
+  CLOSED
+}
+
+enum OrderSource {
+  POS
+  TABLET
+  WAITER
+}
+
+enum OrderStatus {
+  DRAFT
+  SUBMITTED
+  IN_KITCHEN
+  READY
+  SERVED
+  CANCELED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  VOIDED
+  REFUNDED
+}
+
+enum AdjustmentScope {
+  SESSION
+  TAB
+}
+
+enum AdjustmentType {
+  DISCOUNT
+  SURCHARGE
+}
+
+enum AdjustmentMode {
+  PERCENT
+  FIXED
+}
+
+model Restaurant {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  currency  String       @default("CRC")
+  timezone  String       @default("America/Costa_Rica")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  tables    DiningTable[]
+  sessions  TableSession[]
+
+  @@map("restaurant")
+}
+
+model DiningTable {
+  id           String          @id @default(uuid()) @db.Uuid
+  restaurantId String          @db.Uuid @map("restaurant_id")
+  name         String
+  status       TableStatus     @default(AVAILABLE)
+  createdAt    DateTime        @default(now()) @map("created_at")
+
+  restaurant   Restaurant      @relation(fields: [restaurantId], references: [id])
+  qrs          DiningTableQr[]
+  sessions     TableSession[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId])
+  @@map("dining_table")
+}
+
+model DiningTableQr {
+  id        String     @id @default(uuid()) @db.Uuid
+  tableId   String     @db.Uuid @map("table_id")
+  publicCode String    @unique @map("public_code")
+  isActive  Boolean    @default(true) @map("is_active")
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  table     DiningTable @relation(fields: [tableId], references: [id])
+
+  @@index([tableId])
+  @@map("dining_table_qr")
+}
+
+model TableSession {
+  id           String           @id @default(uuid()) @db.Uuid
+  restaurantId String           @db.Uuid @map("restaurant_id")
+  tableId      String           @db.Uuid @map("table_id")
+  publicCode   String?          @unique @map("public_code") // optional if you later use session QR
+  status       SessionStatus    @default(OPEN)
+  guestsCount  Int?             @map("guests_count")
+  openedAt     DateTime         @default(now()) @map("opened_at")
+  closedAt     DateTime?        @map("closed_at")
+
+  restaurant   Restaurant       @relation(fields: [restaurantId], references: [id])
+  table        DiningTable      @relation(fields: [tableId], references: [id])
+
+  tabs         TableSessionTab[]
+  orders       Order[]
+  payments     Payment[]
+  adjustments  SessionAdjustment[]
+
+  @@index([restaurantId])
+  @@index([tableId, status])
+  @@map("table_session")
+}
+
+model TableSessionTab {
+  id            String          @id @default(uuid()) @db.Uuid
+  tableSessionId String         @db.Uuid @map("table_session_id")
+  label         String
+  status        TabStatus       @default(OPEN)
+  createdAt     DateTime        @default(now()) @map("created_at")
+  closedAt      DateTime?       @map("closed_at")
+
+  session       TableSession    @relation(fields: [tableSessionId], references: [id])
+  allocations   OrderItemAllocation[]
+  payments      Payment[]
+  adjustments   SessionAdjustment[]
+
+  @@index([tableSessionId])
+  @@unique([tableSessionId, label])
+  @@map("table_session_tab")
+}
+
+model Order {
+  id            String        @id @default(uuid()) @db.Uuid
+  restaurantId  String        @db.Uuid @map("restaurant_id")
+  tableSessionId String       @db.Uuid @map("table_session_id")
+  source        OrderSource
+  status        OrderStatus   @default(DRAFT)
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  session       TableSession  @relation(fields: [tableSessionId], references: [id])
+  items         OrderItem[]
+
+  @@index([tableSessionId])
+  @@index([restaurantId])
+  @@map("order")
+}
+
+model OrderItem {
+  id        String     @id @default(uuid()) @db.Uuid
+  orderId   String     @db.Uuid @map("order_id")
+  productId String?    @db.Uuid @map("product_id")
+  nameSnapshot String  @map("name_snapshot")
+  qty       Decimal    @db.Decimal(10, 3)
+  unitPrice Decimal    @db.Decimal(12, 2) @map("unit_price")
+  notes     String?
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  order     Order      @relation(fields: [orderId], references: [id])
+  modifiers OrderItemModifier[]
+  allocations OrderItemAllocation[]
+
+  @@index([orderId])
+  @@map("order_item")
+}
+
+model OrderItemModifier {
+  id          String   @id @default(uuid()) @db.Uuid
+  orderItemId String   @db.Uuid @map("order_item_id")
+  nameSnapshot String  @map("name_snapshot")
+  priceDelta  Decimal  @db.Decimal(12, 2) @map("price_delta")
+  qty         Decimal  @db.Decimal(10, 3) @default(1)
+
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
+
+  @@index([orderItemId])
+  @@map("order_item_modifier")
+}
+
+model OrderItemAllocation {
+  id          String   @id @default(uuid()) @db.Uuid
+  orderItemId String   @db.Uuid @map("order_item_id")
+  tabId       String   @db.Uuid @map("tab_id")
+  qty         Decimal  @db.Decimal(10, 3)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  orderItem   OrderItem        @relation(fields: [orderItemId], references: [id])
+  tab         TableSessionTab  @relation(fields: [tabId], references: [id])
+
+  @@unique([orderItemId, tabId])
+  @@index([tabId])
+  @@map("order_item_allocation")
+}
+
+model Payment {
+  id            String        @id @default(uuid()) @db.Uuid
+  tableSessionId String       @db.Uuid @map("table_session_id")
+  tabId         String?       @db.Uuid @map("tab_id")
+  amount        Decimal       @db.Decimal(12, 2)
+  method        String
+  status        PaymentStatus @default(PAID)
+  providerRef   String?       @map("provider_ref")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  session       TableSession  @relation(fields: [tableSessionId], references: [id])
+  tab           TableSessionTab? @relation(fields: [tabId], references: [id])
+
+  @@index([tableSessionId])
+  @@index([tabId])
+  @@map("payment")
+}
+
+model SessionAdjustment {
+  id            String          @id @default(uuid()) @db.Uuid
+  tableSessionId String         @db.Uuid @map("table_session_id")
+  tabId         String?         @db.Uuid @map("tab_id")
+  scope         AdjustmentScope
+  type          AdjustmentType
+  mode          AdjustmentMode
+  value         Decimal         @db.Decimal(12, 2)
+  reason        String?
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  session       TableSession    @relation(fields: [tableSessionId], references: [id])
+  tab           TableSessionTab? @relation(fields: [tabId], references: [id])
+
+  @@index([tableSessionId])
+  @@index([tabId])
+  @@map("session_adjustment")
+}
