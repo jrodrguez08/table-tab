@@ -1,0 +1,15 @@
+{
+  "name": "table-tap",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,pos,table -c auto \"npm run dev -w @table-tap/api\" \"npm run dev -w @table-tap/pos-web\" \"npm run dev -w @table-tap/table-web\"",
+    "build": "npm run build -ws",
+    "lint": "npm run lint -ws",
+    "test": "npm run test -ws",
+    "typecheck": "npm run typecheck -ws"
+  }
+}
