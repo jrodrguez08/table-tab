@@ -1,23 +1,27 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import type { BillResponse, RestaurantTaxConfig, CurrencyCode } from '../types';
+import { PrismaService } from '../prisma/prisma.service';
 import { BillingService } from '../billing/billing.service';
-
-const prisma = new PrismaClient();
+import type { LoadedSession } from '../session/session.types';
 
 @Injectable()
 export class PublicService {
-  constructor(private readonly billingService: BillingService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly billingService: BillingService,
+  ) {}
 
-  async getBillByTableQr(publicCode: string) {
-    const qr = await prisma.diningTableQr.findFirst({
+  async getBillByTableQr(publicCode: string): Promise<BillResponse> {
+    const qr = await this.prisma.diningTableQr.findFirst({
       where: { publicCode, isActive: true },
     });
 
     if (!qr) throw new NotFoundException('QR not found');
 
-    const session = await prisma.tableSession.findFirst({
+    const session = await this.prisma.tableSession.findFirst({
       where: { tableId: qr.tableId, status: 'OPEN' },
       include: {
+        restaurant: true,
         tabs: true,
         adjustments: true,
         payments: true,
@@ -31,6 +35,17 @@ export class PublicService {
 
     if (!session) throw new NotFoundException('No open session for this table');
 
-    return this.billingService.buildBill(session, 'CRC');
+    const restaurantTaxConfig: RestaurantTaxConfig = {
+      vatRate: Number(session.restaurant.vatRate),
+      serviceRate: Number(session.restaurant.serviceRate),
+      pricesIncludeVat: session.restaurant.pricesIncludeVat,
+      currency: session.restaurant.currency as CurrencyCode,
+    };
+
+    // BillingService devuelve BillResponse (tipo compartido)
+    return this.billingService.buildBill(
+      session as LoadedSession,
+      restaurantTaxConfig,
+    );
   }
 }
