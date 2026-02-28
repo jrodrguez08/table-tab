@@ -1,4 +1,15 @@
-import { PrismaClient, OrderSource, OrderStatus, SessionStatus, TableStatus, TabStatus, PaymentStatus, AdjustmentScope, AdjustmentType, AdjustmentMode } from '@prisma/client';
+import {
+  PrismaClient,
+  OrderSource,
+  OrderStatus,
+  SessionStatus,
+  TableStatus,
+  TabStatus,
+  PaymentStatus,
+  AdjustmentScope,
+  AdjustmentType,
+  AdjustmentMode,
+} from '@prisma/client';
 import { nanoid } from 'nanoid';
 
 const prisma = new PrismaClient();
@@ -22,9 +33,9 @@ async function main() {
 
   const restaurant = await prisma.restaurant.create({
     data: {
-      name: "TableTap Demo",
-      currency: "CRC",
-      timezone: "America/Costa_Rica",
+      name: 'TableTap Demo',
+      currency: 'CRC',
+      timezone: 'America/Costa_Rica',
     },
   });
 
@@ -64,7 +75,7 @@ async function main() {
   const table1 = await prisma.diningTable.create({
     data: {
       restaurantId: restaurant.id,
-      name: "Mesa 1",
+      name: 'Mesa 1',
       status: TableStatus.OCCUPIED,
     },
   });
@@ -72,7 +83,7 @@ async function main() {
   await prisma.diningTable.create({
     data: {
       restaurantId: restaurant.id,
-      name: "Mesa 2",
+      name: 'Mesa 2',
       status: TableStatus.AVAILABLE,
     },
   });
@@ -95,11 +106,19 @@ async function main() {
   });
 
   const tabA = await prisma.tableSessionTab.create({
-    data: { tableSessionId: session.id, label: "Persona 1", status: TabStatus.OPEN },
+    data: {
+      tableSessionId: session.id,
+      label: 'Persona 1',
+      status: TabStatus.OPEN,
+    },
   });
 
   const tabB = await prisma.tableSessionTab.create({
-    data: { tableSessionId: session.id, label: "Persona 2", status: TabStatus.OPEN },
+    data: {
+      tableSessionId: session.id,
+      label: 'Persona 2',
+      status: TabStatus.OPEN,
+    },
   });
 
   const order = await prisma.order.create({
@@ -165,8 +184,8 @@ async function main() {
       scope: AdjustmentScope.SESSION,
       type: AdjustmentType.DISCOUNT,
       mode: AdjustmentMode.PERCENT,
-      value: "10.00",
-      reason: "Promo",
+      value: '10.00',
+      reason: 'Promo',
     },
   });
 
@@ -175,17 +194,17 @@ async function main() {
     data: {
       tableSessionId: session.id,
       tabId: tabA.id,
-      amount: "3000.00",
-      method: "cash",
+      amount: '3000.00',
+      method: 'cash',
       status: PaymentStatus.PAID,
     },
   });
 
-  console.log("Seed listo ✅");
-  console.log("Mesa 1 QR publicCode:", table1Qr.publicCode);
-  console.log("Session id:", session.id);
-  console.log("Tab Persona 1:", tabA.id);
-  console.log("Tab Persona 2:", tabB.id);
+  console.log('Seed listo ✅');
+  console.log('Mesa 1 QR publicCode:', table1Qr.publicCode);
+  console.log('Session id:', session.id);
+  console.log('Tab Persona 1:', tabA.id);
+  console.log('Tab Persona 2:', tabB.id);
 }
 
 main()

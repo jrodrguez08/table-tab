@@ -68,16 +68,16 @@ enum AdjustmentMode {
 }
 
 model Restaurant {
-  id       String @id @default(uuid()) @db.Uuid
-  name     String
-  currency String @default("CRC")
-  timezone String @default("America/Costa_Rica")
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  currency  String   @default("CRC")
+  timezone  String   @default("America/Costa_Rica")
 
-  vatRate          Decimal @default(0.1300) @map("vat_rate") @db.Decimal(5, 4) // ejemplo: 13%
-  serviceRate      Decimal @default(0.1000) @map("service_rate") @db.Decimal(5, 4) // ejemplo: 10%
+  vatRate        Decimal @db.Decimal(5, 4) @default(0.1300) @map("vat_rate")        // ejemplo: 13%
+  serviceRate    Decimal @db.Decimal(5, 4) @default(0.1000) @map("service_rate")    // ejemplo: 10%
   pricesIncludeVat Boolean @default(false) @map("prices_include_vat")
 
-  createdAt DateTime       @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
   tables    DiningTable[]
   sessions  TableSession[]
   products  Product[]

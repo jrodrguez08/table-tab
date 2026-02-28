@@ -1,0 +1,7 @@
+{
+  "eslint.validate": ["typescript", "typescriptreact", "javascript", "javascriptreact"],
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "always"
+  },
+  "typescript.tsserver.experimental.enableProjectDiagnostics": true
+}
