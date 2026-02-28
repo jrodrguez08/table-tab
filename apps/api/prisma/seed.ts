@@ -1,5 +1,5 @@
-import { PrismaClient, OrderSource, OrderStatus, SessionStatus, TableStatus, TabStatus, PaymentStatus, AdjustmentScope, AdjustmentType, AdjustmentMode } from "@prisma/client";
-import { nanoid } from "nanoid";
+import { PrismaClient, OrderSource, OrderStatus, SessionStatus, TableStatus, TabStatus, PaymentStatus, AdjustmentScope, AdjustmentType, AdjustmentMode } from '@prisma/client';
+import { nanoid } from 'nanoid';
 
 const prisma = new PrismaClient();
 
@@ -15,6 +15,9 @@ async function main() {
   await prisma.tableSession.deleteMany();
   await prisma.diningTableQr.deleteMany();
   await prisma.diningTable.deleteMany();
+
+  await prisma.product.deleteMany();
+
   await prisma.restaurant.deleteMany();
 
   const restaurant = await prisma.restaurant.create({
@@ -25,6 +28,39 @@ async function main() {
     },
   });
 
+  const [productBurger, productFries, productLemonade] = await Promise.all([
+    prisma.product.create({
+      data: {
+        restaurantId: restaurant.id,
+        name: 'Hamburguesa',
+        description: 'Burger clásica',
+        price: '4500.00',
+        cost: '2500.00', // costo ejemplo
+        isActive: true,
+      },
+    }),
+    prisma.product.create({
+      data: {
+        restaurantId: restaurant.id,
+        name: 'Papas grandes',
+        description: 'Papas fritas tamaño grande',
+        price: '1800.00',
+        cost: '700.00',
+        isActive: true,
+      },
+    }),
+    prisma.product.create({
+      data: {
+        restaurantId: restaurant.id,
+        name: 'Limonada',
+        description: 'Limonada natural',
+        price: '1200.00',
+        cost: '250.00',
+        isActive: true,
+      },
+    }),
+  ]);
+
   const table1 = await prisma.diningTable.create({
     data: {
       restaurantId: restaurant.id,
@@ -33,7 +69,7 @@ async function main() {
     },
   });
 
-  const table2 = await prisma.diningTable.create({
+  await prisma.diningTable.create({
     data: {
       restaurantId: restaurant.id,
       name: "Mesa 2",
@@ -55,7 +91,6 @@ async function main() {
       tableId: table1.id,
       status: SessionStatus.OPEN,
       guestsCount: 2,
-      // publicCode: nanoid(16), // opcional si luego haces QR por sesión
     },
   });
 
@@ -76,46 +111,50 @@ async function main() {
     },
   });
 
-  // Items (sin catálogo aún, usamos snapshot + productId null)
+  // Items (AHORA usando catálogo + snapshots)
   const burger = await prisma.orderItem.create({
     data: {
       orderId: order.id,
-      productId: null,
-      nameSnapshot: "Hamburguesa",
-      qty: "1.000",
-      unitPrice: "4500.00",
-      notes: "Sin cebolla",
+      productId: productBurger.id,
+      nameSnapshot: productBurger.name,
+      qty: '1.000',
+      unitPrice: productBurger.price,
+      // 👇 si agregaste unitCost en OrderItem
+      unitCost: productBurger.cost,
+      notes: 'Sin cebolla',
     },
   });
 
   const fries = await prisma.orderItem.create({
     data: {
       orderId: order.id,
-      productId: null,
-      nameSnapshot: "Papas grandes",
-      qty: "1.000",
-      unitPrice: "1800.00",
+      productId: productFries.id,
+      nameSnapshot: productFries.name,
+      qty: '1.000',
+      unitPrice: productFries.price,
+      unitCost: productFries.cost,
     },
   });
 
   const lemonade = await prisma.orderItem.create({
     data: {
       orderId: order.id,
-      productId: null,
-      nameSnapshot: "Limonada",
-      qty: "2.000",
-      unitPrice: "1200.00",
+      productId: productLemonade.id,
+      nameSnapshot: productLemonade.name,
+      qty: '2.000',
+      unitPrice: productLemonade.price,
+      unitCost: productLemonade.cost,
     },
   });
 
   // Asignaciones para split bill
   await prisma.orderItemAllocation.createMany({
     data: [
-      { orderItemId: burger.id, tabId: tabA.id, qty: "1.000" },           // burger persona 1
-      { orderItemId: fries.id, tabId: tabA.id, qty: "0.500" },            // papas mitad y mitad
-      { orderItemId: fries.id, tabId: tabB.id, qty: "0.500" },
-      { orderItemId: lemonade.id, tabId: tabA.id, qty: "1.000" },         // 1 limonada cada uno
-      { orderItemId: lemonade.id, tabId: tabB.id, qty: "1.000" },
+      { orderItemId: burger.id, tabId: tabA.id, qty: '1.000' },
+      { orderItemId: fries.id, tabId: tabA.id, qty: '0.500' },
+      { orderItemId: fries.id, tabId: tabB.id, qty: '0.500' },
+      { orderItemId: lemonade.id, tabId: tabA.id, qty: '1.000' },
+      { orderItemId: lemonade.id, tabId: tabB.id, qty: '1.000' },
     ],
   });
 
