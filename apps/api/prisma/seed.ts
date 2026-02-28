@@ -1,5 +1,16 @@
-import { PrismaClient, OrderSource, OrderStatus, SessionStatus, TableStatus, TabStatus, PaymentStatus, AdjustmentScope, AdjustmentType, AdjustmentMode } from "@prisma/client";
-import { nanoid } from "nanoid";
+import {
+  PrismaClient,
+  OrderSource,
+  OrderStatus,
+  SessionStatus,
+  TableStatus,
+  TabStatus,
+  PaymentStatus,
+  AdjustmentScope,
+  AdjustmentType,
+  AdjustmentMode,
+} from '@prisma/client';
+import { nanoid } from 'nanoid';
 
 const prisma = new PrismaClient();
 
@@ -19,16 +30,16 @@ async function main() {
 
   const restaurant = await prisma.restaurant.create({
     data: {
-      name: "TableTap Demo",
-      currency: "CRC",
-      timezone: "America/Costa_Rica",
+      name: 'TableTap Demo',
+      currency: 'CRC',
+      timezone: 'America/Costa_Rica',
     },
   });
 
   const table1 = await prisma.diningTable.create({
     data: {
       restaurantId: restaurant.id,
-      name: "Mesa 1",
+      name: 'Mesa 1',
       status: TableStatus.OCCUPIED,
     },
   });
@@ -36,7 +47,7 @@ async function main() {
   const table2 = await prisma.diningTable.create({
     data: {
       restaurantId: restaurant.id,
-      name: "Mesa 2",
+      name: 'Mesa 2',
       status: TableStatus.AVAILABLE,
     },
   });
@@ -60,11 +71,19 @@ async function main() {
   });
 
   const tabA = await prisma.tableSessionTab.create({
-    data: { tableSessionId: session.id, label: "Persona 1", status: TabStatus.OPEN },
+    data: {
+      tableSessionId: session.id,
+      label: 'Persona 1',
+      status: TabStatus.OPEN,
+    },
   });
 
   const tabB = await prisma.tableSessionTab.create({
-    data: { tableSessionId: session.id, label: "Persona 2", status: TabStatus.OPEN },
+    data: {
+      tableSessionId: session.id,
+      label: 'Persona 2',
+      status: TabStatus.OPEN,
+    },
   });
 
   const order = await prisma.order.create({
@@ -81,10 +100,10 @@ async function main() {
     data: {
       orderId: order.id,
       productId: null,
-      nameSnapshot: "Hamburguesa",
-      qty: "1.000",
-      unitPrice: "4500.00",
-      notes: "Sin cebolla",
+      nameSnapshot: 'Hamburguesa',
+      qty: '1.000',
+      unitPrice: '4500.00',
+      notes: 'Sin cebolla',
     },
   });
 
@@ -92,9 +111,9 @@ async function main() {
     data: {
       orderId: order.id,
       productId: null,
-      nameSnapshot: "Papas grandes",
-      qty: "1.000",
-      unitPrice: "1800.00",
+      nameSnapshot: 'Papas grandes',
+      qty: '1.000',
+      unitPrice: '1800.00',
     },
   });
 
@@ -102,20 +121,20 @@ async function main() {
     data: {
       orderId: order.id,
       productId: null,
-      nameSnapshot: "Limonada",
-      qty: "2.000",
-      unitPrice: "1200.00",
+      nameSnapshot: 'Limonada',
+      qty: '2.000',
+      unitPrice: '1200.00',
     },
   });
 
   // Asignaciones para split bill
   await prisma.orderItemAllocation.createMany({
     data: [
-      { orderItemId: burger.id, tabId: tabA.id, qty: "1.000" },           // burger persona 1
-      { orderItemId: fries.id, tabId: tabA.id, qty: "0.500" },            // papas mitad y mitad
-      { orderItemId: fries.id, tabId: tabB.id, qty: "0.500" },
-      { orderItemId: lemonade.id, tabId: tabA.id, qty: "1.000" },         // 1 limonada cada uno
-      { orderItemId: lemonade.id, tabId: tabB.id, qty: "1.000" },
+      { orderItemId: burger.id, tabId: tabA.id, qty: '1.000' }, // burger persona 1
+      { orderItemId: fries.id, tabId: tabA.id, qty: '0.500' }, // papas mitad y mitad
+      { orderItemId: fries.id, tabId: tabB.id, qty: '0.500' },
+      { orderItemId: lemonade.id, tabId: tabA.id, qty: '1.000' }, // 1 limonada cada uno
+      { orderItemId: lemonade.id, tabId: tabB.id, qty: '1.000' },
     ],
   });
 
@@ -126,8 +145,8 @@ async function main() {
       scope: AdjustmentScope.SESSION,
       type: AdjustmentType.DISCOUNT,
       mode: AdjustmentMode.PERCENT,
-      value: "10.00",
-      reason: "Promo",
+      value: '10.00',
+      reason: 'Promo',
     },
   });
 
@@ -136,17 +155,17 @@ async function main() {
     data: {
       tableSessionId: session.id,
       tabId: tabA.id,
-      amount: "3000.00",
-      method: "cash",
+      amount: '3000.00',
+      method: 'cash',
       status: PaymentStatus.PAID,
     },
   });
 
-  console.log("Seed listo ✅");
-  console.log("Mesa 1 QR publicCode:", table1Qr.publicCode);
-  console.log("Session id:", session.id);
-  console.log("Tab Persona 1:", tabA.id);
-  console.log("Tab Persona 2:", tabB.id);
+  console.log('Seed listo ✅');
+  console.log('Mesa 1 QR publicCode:', table1Qr.publicCode);
+  console.log('Session id:', session.id);
+  console.log('Tab Persona 1:', tabA.id);
+  console.log('Tab Persona 2:', tabB.id);
 }
 
 main()

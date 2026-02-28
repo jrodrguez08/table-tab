@@ -1,135 +1,184 @@
-import { Injectable } from "@nestjs/common";
-import type { TableSession, TableSessionTab, SessionAdjustment, Payment, Order, OrderItem, OrderItemModifier, OrderItemAllocation } from "@prisma/client";
+import { Injectable } from '@nestjs/common';
 
-type LoadedSession = TableSession & {
-  tabs: TableSessionTab[];
-  adjustments: SessionAdjustment[];
-  payments: Payment[];
-  orders: (Order & {
-    items: (OrderItem & {
-      modifiers: OrderItemModifier[];
-      allocations: OrderItemAllocation[];
-    })[];
-  })[];
-};
+import { LoadedSession } from '../session/session.types';
+import type { RestaurantTaxConfig } from '../types/restaurant.types';
+import type { TabLineItem, BillResponse } from '../types/bill.types';
 
 function money(n: number) {
   return Math.round(n * 100) / 100;
 }
 
+function normalizeRate(r: number) {
+  return r > 1 ? r / 100 : r;
+}
+
 @Injectable()
 export class BillingService {
-  buildBill(session: LoadedSession, currency = "CRC") {
-    const items = session.orders.flatMap((o) => o.items).map((i) => {
-      const modifiersTotal = i.modifiers.reduce((sum, m) => sum + Number(m.priceDelta) * Number(m.qty), 0);
-      const baseTotal = Number(i.unitPrice) * Number(i.qty);
-      const total = baseTotal + modifiersTotal;
+  buildBill(
+    session: LoadedSession,
+    restaurant: RestaurantTaxConfig,
+  ): BillResponse {
+    const vatRate = normalizeRate(Number(restaurant.vatRate));
+    const serviceRate = normalizeRate(Number(restaurant.serviceRate));
+    const pricesIncludeVat = restaurant.pricesIncludeVat;
 
-      const allocatedQty = i.allocations.reduce((sum, a) => sum + Number(a.qty), 0);
-      const unassignedQty = Math.max(0, Number(i.qty) - allocatedQty);
+    const tabData: Record<
+      string,
+      {
+        items: TabLineItem[];
+        subtotal: number;
+        discount: number;
+        vat: number;
+        service: number;
+        total: number;
+        paid: number;
+      }
+    > = {};
 
-      return {
-        id: i.id,
-        name: i.nameSnapshot,
-        qty: Number(i.qty),
-        unitPrice: Number(i.unitPrice),
-        modifiers: i.modifiers.map((m) => ({
-          name: m.nameSnapshot,
-          qty: Number(m.qty),
-          priceDelta: Number(m.priceDelta),
-        })),
-        modifiersTotal: money(modifiersTotal),
-        baseTotal: money(baseTotal),
-        total: money(total),
-        allocations: i.allocations.map((a) => ({
-          tabId: a.tabId,
-          qty: Number(a.qty),
-        })),
-        allocatedQty: money(allocatedQty),
-        unassignedQty: money(unassignedQty),
+    for (const tab of session.tabs) {
+      tabData[tab.id] = {
+        items: [],
+        subtotal: 0,
+        discount: 0,
+        vat: 0,
+        service: 0,
+        total: 0,
+        paid: 0,
       };
-    });
+    }
 
-    const sessionDiscountPercent = session.adjustments
-      .filter((a) => a.scope === "SESSION" && a.type === "DISCOUNT" && a.mode === "PERCENT")
-      .reduce((sum, a) => sum + Number(a.value), 0);
+    // 1) items + allocations => items por tab
+    for (const order of session.orders) {
+      for (const item of order.items) {
+        const modifiersTotal = item.modifiers.reduce(
+          (sum, m) => sum + Number(m.priceDelta) * Number(m.qty),
+          0,
+        );
 
-    const sessionDiscountFixed = session.adjustments
-      .filter((a) => a.scope === "SESSION" && a.type === "DISCOUNT" && a.mode === "FIXED")
-      .reduce((sum, a) => sum + Number(a.value), 0);
+        const itemBaseTotal =
+          Number(item.unitPrice) * Number(item.qty) + modifiersTotal;
 
-    const tabSubtotal: Record<string, number> = Object.fromEntries(session.tabs.map((t) => [t.id, 0]));
+        for (const alloc of item.allocations) {
+          const ratio =
+            Number(item.qty) === 0 ? 0 : Number(alloc.qty) / Number(item.qty);
+          const lineSubtotalRaw = itemBaseTotal * ratio;
 
-    for (const it of items) {
-      const itemTotal = it.total;
-      for (const alloc of it.allocations) {
-        const ratio = it.qty === 0 ? 0 : alloc.qty / it.qty;
-        tabSubtotal[alloc.tabId] = (tabSubtotal[alloc.tabId] ?? 0) + itemTotal * ratio;
+          let base = lineSubtotalRaw;
+          if (pricesIncludeVat) base = lineSubtotalRaw / (1 + vatRate);
+
+          tabData[alloc.tabId].items.push({
+            itemId: item.id,
+            name: item.nameSnapshot,
+            qty: Number(alloc.qty),
+            unitPrice: Number(item.unitPrice),
+            modifiers: item.modifiers.map((m) => ({
+              name: m.nameSnapshot,
+              qty: Number(m.qty),
+              priceDelta: Number(m.priceDelta),
+            })),
+            lineSubtotal: base,
+          });
+
+          tabData[alloc.tabId].subtotal += base;
+        }
       }
     }
 
-    const subtotalAllTabs = Object.values(tabSubtotal).reduce((s, v) => s + v, 0);
-    const tableSubtotal = items.reduce((s, it) => s + it.total, 0);
+    // 2) descuentos session-level
+    const percentDiscount = session.adjustments
+      .filter(
+        (a) =>
+          a.scope === 'SESSION' &&
+          a.type === 'DISCOUNT' &&
+          a.mode === 'PERCENT',
+      )
+      .reduce((sum, a) => sum + Number(a.value), 0);
 
-    const tabDiscount: Record<string, number> = {};
-    for (const tabId of Object.keys(tabSubtotal)) {
-      const share = subtotalAllTabs > 0 ? tabSubtotal[tabId] / subtotalAllTabs : 0;
-      const percentAmount = (tabSubtotal[tabId] * sessionDiscountPercent) / 100;
-      const fixedAmount = sessionDiscountFixed * share;
-      tabDiscount[tabId] = money(percentAmount + fixedAmount);
+    const fixedDiscount = session.adjustments
+      .filter(
+        (a) =>
+          a.scope === 'SESSION' && a.type === 'DISCOUNT' && a.mode === 'FIXED',
+      )
+      .reduce((sum, a) => sum + Number(a.value), 0);
+
+    const totalSubtotal = Object.values(tabData).reduce(
+      (s, t) => s + t.subtotal,
+      0,
+    );
+
+    for (const tabId of Object.keys(tabData)) {
+      const tab = tabData[tabId];
+
+      const percentAmount = tab.subtotal * (percentDiscount / 100);
+      const fixedAmount =
+        totalSubtotal > 0 ? fixedDiscount * (tab.subtotal / totalSubtotal) : 0;
+
+      tab.discount = percentAmount + fixedAmount;
+
+      const baseAfterDiscount = tab.subtotal - tab.discount;
+
+      tab.vat = baseAfterDiscount * vatRate;
+      tab.service = baseAfterDiscount * serviceRate;
+      tab.total = baseAfterDiscount + tab.vat + tab.service;
     }
 
-    const paidByTab: Record<string, number> = Object.fromEntries(session.tabs.map((t) => [t.id, 0]));
-    for (const p of session.payments) {
-      if (p.status !== "PAID") continue;
-      if (p.tabId) paidByTab[p.tabId] = (paidByTab[p.tabId] ?? 0) + Number(p.amount);
+    // 3) pagos
+    for (const payment of session.payments) {
+      if (payment.status !== 'PAID') continue;
+      if (payment.tabId) tabData[payment.tabId].paid += Number(payment.amount);
     }
 
-    const tabs = session.tabs.map((t) => {
-      const subtotal = money(tabSubtotal[t.id] ?? 0);
-      const discount = money(tabDiscount[t.id] ?? 0);
-      const total = money(subtotal - discount);
-      const paid = money(paidByTab[t.id] ?? 0);
-      const balance = money(total - paid);
+    // 4) response tabs (redondeo aquí)
+    const tabs = session.tabs.map((tab) => {
+      const data = tabData[tab.id];
+      const balance = money(data.total - data.paid);
 
-      return { id: t.id, label: t.label, subtotal, discount, total, paid, balance };
+      return {
+        id: tab.id,
+        label: tab.label,
+        items: data.items.map((it) => ({
+          ...it,
+          lineSubtotal: money(it.lineSubtotal),
+        })),
+        totals: {
+          subtotal: money(data.subtotal),
+          discount: money(data.discount),
+          vat: money(data.vat),
+          service: money(data.service),
+          total: money(data.total),
+          paid: money(data.paid),
+          balance,
+        },
+      };
     });
 
-    const unassigned = items
-      .filter((it) => it.unassignedQty > 0)
-      .map((it) => {
-        const ratio = it.qty === 0 ? 0 : it.unassignedQty / it.qty;
-        return {
-          itemId: it.id,
-          name: it.name,
-          qty: it.unassignedQty,
-          estimatedTotal: money(it.total * ratio),
-        };
-      });
-
-    const totalDiscount = money((subtotalAllTabs * sessionDiscountPercent) / 100 + sessionDiscountFixed);
-    const tableTotal = money(tableSubtotal - totalDiscount);
-
-    const paidTotal = session.payments
-      .filter((p) => p.status === "PAID")
-      .reduce((s, p) => s + Number(p.amount), 0);
-
-    const tableBalance = money(tableTotal - paidTotal);
+    const grand = tabs.reduce(
+      (acc, t) => {
+        acc.subtotal += t.totals.subtotal;
+        acc.discount += t.totals.discount;
+        acc.vat += t.totals.vat;
+        acc.service += t.totals.service;
+        acc.total += t.totals.total;
+        acc.paid += t.totals.paid;
+        return acc;
+      },
+      { subtotal: 0, discount: 0, vat: 0, service: 0, total: 0, paid: 0 },
+    );
 
     return {
       restaurantId: session.restaurantId,
       tableId: session.tableId,
       sessionId: session.id,
-      currency,
-      items,
-      unassigned,
+      currency: `${restaurant.currency}`,
       tabs,
       totals: {
-        subtotal: money(tableSubtotal),
-        discount: totalDiscount,
-        total: tableTotal,
-        paid: money(paidTotal),
-        balance: tableBalance,
+        subtotal: money(grand.subtotal),
+        discount: money(grand.discount),
+        vat: money(grand.vat),
+        service: money(grand.service),
+        total: money(grand.total),
+        paid: money(grand.paid),
+        balance: money(grand.total - grand.paid),
       },
       updatedAt: new Date().toISOString(),
     };
