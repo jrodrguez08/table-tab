@@ -9,4 +9,9 @@ export class PublicController {
   getBillByTableQr(@Param('publicCode') publicCode: string) {
     return this.publicService.getBillByTableQr(publicCode);
   }
+
+  @Get('tables/:publicCode/menu')
+  getMenuByTableQr(@Param('publicCode') publicCode: string) {
+    return this.publicService.getMenuByTableQr(publicCode);
+  }
 }
