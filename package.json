@@ -1,7 +1,10 @@
 {
   "name": "table-tab",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "devDependencies": {
     "concurrently": "^9.0.0"
   },
@@ -11,5 +14,8 @@
     "lint": "npm run lint -ws",
     "test": "npm run test -ws",
     "typecheck": "npm run typecheck -ws"
+  },
+  "dependencies": {
+    "@nestjs/mapped-types": "^2.1.0"
   }
 }
