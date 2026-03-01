@@ -14,6 +14,17 @@ import { nanoid } from 'nanoid';
 
 const prisma = new PrismaClient();
 
+function slugify(input: string): string {
+  return input
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // quita acentos
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-') // no alfanum -> -
+    .replace(/^-+|-+$/g, '') // trim guiones
+    .replace(/-{2,}/g, '-'); // colapsa guiones
+}
+
 async function main() {
   // Limpieza (orden importante por FKs)
   await prisma.orderItemAllocation.deleteMany();
@@ -28,46 +39,77 @@ async function main() {
   await prisma.diningTable.deleteMany();
 
   await prisma.product.deleteMany();
+  // NUEVO: categorías antes de restaurante
+  await prisma.category.deleteMany();
 
   await prisma.restaurant.deleteMany();
 
+  const restaurantName = 'TableTab Demo';
   const restaurant = await prisma.restaurant.create({
     data: {
-      name: 'TableTap Demo',
+      name: restaurantName,
+      slug: slugify(restaurantName), // NUEVO
       currency: 'CRC',
       timezone: 'America/Costa_Rica',
     },
   });
 
+  // NUEVO: categorías
+  const [catComidas, catBebidas] = await Promise.all([
+    prisma.category.create({
+      data: {
+        restaurantId: restaurant.id,
+        name: 'Comidas',
+        sortOrder: 1,
+        isActive: true,
+      },
+    }),
+    prisma.category.create({
+      data: {
+        restaurantId: restaurant.id,
+        name: 'Bebidas',
+        sortOrder: 2,
+        isActive: true,
+      },
+    }),
+  ]);
+
+  // Productos (AHORA con categoryId)
   const [productBurger, productFries, productLemonade] = await Promise.all([
     prisma.product.create({
       data: {
         restaurantId: restaurant.id,
+        categoryId: catComidas.id,
         name: 'Hamburguesa',
         description: 'Burger clásica',
         price: '4500.00',
-        cost: '2500.00', // costo ejemplo
+        cost: '2500.00', // costo ejemplo (interno)
         isActive: true,
+        // sortOrder: 1, // si lo agregaste en schema
       },
     }),
     prisma.product.create({
       data: {
         restaurantId: restaurant.id,
+        categoryId: catComidas.id,
         name: 'Papas grandes',
         description: 'Papas fritas tamaño grande',
         price: '1800.00',
         cost: '700.00',
         isActive: true,
+        // sortOrder: 2,
       },
     }),
     prisma.product.create({
       data: {
         restaurantId: restaurant.id,
+        categoryId: catBebidas.id,
         name: 'Limonada',
         description: 'Limonada natural',
         price: '1200.00',
         cost: '250.00',
         isActive: true,
+        // sortOrder: 1,
       },
     }),
   ]);
@@ -130,7 +172,7 @@ async function main() {
     },
   });
 
-  // Items (AHORA usando catálogo + snapshots)
+  // Items (catálogo + snapshots)
   const burger = await prisma.orderItem.create({
     data: {
       orderId: order.id,
@@ -138,7 +180,6 @@ async function main() {
       nameSnapshot: productBurger.name,
       qty: '1.000',
       unitPrice: productBurger.price,
-      // 👇 si agregaste unitCost en OrderItem
       unitCost: productBurger.cost,
       notes: 'Sin cebolla',
     },
@@ -201,6 +242,7 @@ async function main() {
   });
 
   console.log('Seed listo ✅');
+  console.log('Restaurant slug:', restaurant.slug);
   console.log('Mesa 1 QR publicCode:', table1Qr.publicCode);
   console.log('Session id:', session.id);
   console.log('Tab Persona 1:', tabA.id);
