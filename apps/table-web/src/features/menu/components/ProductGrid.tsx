@@ -1,5 +1,5 @@
 import type { PublicMenuProduct, PublicMenuRestaurant } from '../types';
-import { MenuProductCard } from '../ProductCard';
+import { MenuProductCard } from './ProductCard';
 
 export function ProductGrid({
   products,

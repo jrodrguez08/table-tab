@@ -7,7 +7,9 @@ import { MenuError } from '@/features/menu/components/Error';
 import { MenuHeader } from '@/features/menu/components/Header';
 import { CategoryTabs } from '@/features/menu/components/CategoryTabs';
 import { EmptyState } from '@/features/menu/components/EmptyState';
+import { MenuSection } from '@/features/menu/components/Section';
 import { ProductGrid } from '@/features/menu/components/ProductGrid';
+import { buildCategorySections } from '@/features/menu/utils';
 
 export function TableMenuPage() {
   const { publicCode } = useParams();
@@ -33,6 +35,14 @@ export function TableMenuPage() {
       return matchesCategory && matchesQuery;
     });
   }, [derived, activeCategoryId, query]);
+
+  const sections = useMemo(() => {
+    return buildCategorySections({
+      products: filteredProducts,
+      categories: derived?.categories ?? [],
+      activeCategoryId,
+    });
+  }, [filteredProducts, derived?.categories, activeCategoryId]);
 
   if (state.status === 'loading' || state.status === 'idle') return <MenuLoading />;
 
@@ -73,11 +83,17 @@ export function TableMenuPage() {
           {filteredProducts.length === 0 ? (
             <EmptyState />
           ) : (
-            <ProductGrid
-              products={filteredProducts}
-              restaurant={restaurant}
-              categoryNameById={categoryNameById}
-            />
+            <div className="space-y-6">
+              {sections.map((section) => (
+                <MenuSection key={section.id} id={`cat-${section.id}`} title={section.name}>
+                  <ProductGrid
+                    products={section.products}
+                    restaurant={restaurant}
+                    categoryNameById={categoryNameById}
+                  />
+                </MenuSection>
+              ))}
+            </div>
           )}
 
           <div className="mt-6 text-xs text-muted-foreground">publicCode: {publicCode}</div>

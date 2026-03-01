@@ -1,18 +1,20 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { PublicMenuProduct, PublicMenuRestaurant } from './types';
+import type { PublicMenuProduct, PublicMenuRestaurant } from '../types';
 import { formatMoney } from '@/lib/currency';
 
 export function MenuProductCard({
   product,
   restaurant,
   categoryName,
+  showCategoryBadge = false,
   onAdd,
 }: {
   product: PublicMenuProduct;
   restaurant: PublicMenuRestaurant;
   categoryName?: string;
+  showCategoryBadge?: boolean;
   onAdd?: () => void;
 }) {
   return (
@@ -22,7 +24,7 @@ export function MenuProductCard({
           <CardTitle className="text-base sm:text-[15px] leading-tight tracking-tight">
             {product.name}
           </CardTitle>
-          {categoryName ? (
+          {showCategoryBadge && categoryName ? (
             <Badge variant="secondary" className="shrink-0 rounded-full">
               {categoryName}
             </Badge>
@@ -40,11 +42,7 @@ export function MenuProductCard({
           <div className="text-[15px] font-semibold tracking-tight">
             {formatMoney(product.price, restaurant.currency)}
           </div>
-          <Button
-            size="sm"
-            onClick={onAdd}
-            className="tt-brand-bg rounded-lg shadow-sm hover:opacity-95"
-          >
+          <Button size="sm" onClick={onAdd} className="tt-btn tt-btn-primary tt-btn-sm">
             Agregar
           </Button>
         </div>

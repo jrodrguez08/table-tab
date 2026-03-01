@@ -129,4 +129,62 @@
       /* p-6 */
     }
   }
+
+  /* Inputs (Apple clean) */
+  .tt-input {
+    @apply h-10 w-full rounded-xl border px-3 text-sm outline-none transition-shadow;
+    border-color: var(--border);
+    background-color: color-mix(in oklab, var(--background) 80%, transparent);
+    color: var(--foreground);
+  }
+
+  .tt-input::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  .tt-input:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 35%, transparent);
+    border-color: color-mix(in oklab, var(--brand) 55%, var(--border));
+  }
+
+  /* Buttons (brandable) */
+  .tt-btn {
+    @apply inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition-all;
+    border: 1px solid transparent;
+  }
+
+  .tt-btn-primary {
+    background-color: var(--brand);
+    color: var(--brand-foreground);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .tt-btn-primary:hover {
+    filter: brightness(0.98);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+
+  .tt-btn-secondary {
+    background-color: color-mix(in oklab, var(--muted) 75%, transparent);
+    color: var(--foreground);
+    border-color: color-mix(in oklab, var(--border) 70%, transparent);
+  }
+
+  .tt-btn-secondary:hover {
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+  }
+
+  /* Small size helpers (sin variantes Tailwind) */
+  .tt-btn-sm {
+    padding: 0.375rem 0.625rem;
+    /* ~size sm */
+    font-size: 0.875rem;
+    border-radius: 0.625rem;
+  }
+
+  :focus-visible {
+  outline: none;
+}
 }

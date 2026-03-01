@@ -33,7 +33,7 @@ export function MenuHeader({
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
             placeholder="Buscar… (hamburguesa, limonada, etc.)"
-            className="sm:max-w-sm bg-background/70"
+            className="tt-input sm:max-w-sm ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
           />
           {children}
         </div>

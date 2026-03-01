@@ -36,3 +36,9 @@ export type PublicMenuResponse = {
   categories: PublicMenuCategory[];
   products: PublicMenuProduct[];
 };
+
+export type CategorySection = {
+  id: string; // categoryId o 'uncategorized'
+  name: string;
+  products: PublicMenuProduct[];
+};
