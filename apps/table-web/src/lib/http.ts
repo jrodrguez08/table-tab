@@ -5,10 +5,11 @@ function buildUrl(path: string) {
   return `${API_URL.replace(/\/$/, '')}${path.startsWith('/') ? '' : '/'}${path}`;
 }
 
-export async function getJson<T>(path: string): Promise<T> {
+export async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(buildUrl(path), {
     method: 'GET',
     headers: { Accept: 'application/json' },
+    signal,
   });
 
   if (!res.ok) {

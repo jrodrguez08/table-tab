@@ -3,7 +3,8 @@ import { getJson } from '@/lib/http';
 import type { PublicMenuResponse } from './types';
 
 type State =
-  | { status: 'idle' | 'loading'; data?: undefined; error?: undefined }
+  | { status: 'idle'; data?: undefined; error?: undefined }
+  | { status: 'loading'; data?: undefined; error?: undefined }
   | { status: 'success'; data: PublicMenuResponse; error?: undefined }
   | { status: 'error'; data?: undefined; error: Error & { status?: number } };
 
@@ -13,22 +14,27 @@ export function usePublicMenu(publicCode?: string) {
   useEffect(() => {
     if (!publicCode) return;
 
-    let cancelled = false;
-    setState({ status: 'loading' });
+    const controller = new AbortController();
 
-    getJson<PublicMenuResponse>(`/public/tables/${encodeURIComponent(publicCode)}/menu`)
+    queueMicrotask(() => {
+      setState({ status: 'loading' });
+    });
+
+    getJson<PublicMenuResponse>(
+      `/public/tables/${encodeURIComponent(publicCode)}/menu`,
+      controller.signal,
+    )
       .then((data) => {
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
         setState({ status: 'success', data });
       })
-      .catch((error: Error & { status?: number }) => {
-        if (cancelled) return;
-        setState({ status: 'error', error });
+      .catch((error: Error & { status?: number; name?: string }) => {
+        if (controller.signal.aborted) return;
+        if (error?.name === 'AbortError') return;
+        setState({ status: 'error', error: error as Error & { status?: number } });
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, [publicCode]);
 
   const derived = useMemo(() => {
@@ -39,11 +45,10 @@ export function usePublicMenu(publicCode?: string) {
     );
 
     const products = [...state.data.products].sort((a, b) => {
-      // opcional: si agregas sortOrder en Product
-      const ao = a.sortOrder ?? 0;
-      const bo = b.sortOrder ?? 0;
       if (a.categoryId !== b.categoryId)
         return (a.categoryId ?? '').localeCompare(b.categoryId ?? '');
+      const ao = a.sortOrder ?? 0;
+      const bo = b.sortOrder ?? 0;
       if (ao !== bo) return ao - bo;
       return a.name.localeCompare(b.name);
     });
