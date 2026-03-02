@@ -67,6 +67,11 @@ enum AdjustmentMode {
   FIXED
 }
 
+enum ModifierGroupSelectMode {
+  OPTIONAL      // 0..max
+  REQUIRED      // min>=1
+}
+
 model Restaurant {
   id        String   @id @default(uuid()) @db.Uuid
   slug      String   @unique 
@@ -248,6 +253,9 @@ model OrderItemModifier {
   orderItemId  String  @map("order_item_id") @db.Uuid
   nameSnapshot String  @map("name_snapshot")
   priceDelta   Decimal @map("price_delta") @db.Decimal(12, 2)
+
+  costDelta    Decimal? @map("cost_delta") @db.Decimal(12, 2)
+
   qty          Decimal @default(1) @db.Decimal(10, 3)
 
   orderItem OrderItem @relation(fields: [orderItemId], references: [id])
