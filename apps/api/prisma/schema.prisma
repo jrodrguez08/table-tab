@@ -68,27 +68,29 @@ enum AdjustmentMode {
 }
 
 enum ModifierGroupSelectMode {
-  OPTIONAL      // 0..max
-  REQUIRED      // min>=1
+  OPTIONAL // 0..max
+  REQUIRED // min>=1
 }
 
 model Restaurant {
-  id        String   @id @default(uuid()) @db.Uuid
-  slug      String   @unique 
-  name      String
-  currency  String   @default("CRC")
-  timezone  String   @default("America/Costa_Rica")
+  id       String @id @default(uuid()) @db.Uuid
+  slug     String @unique
+  name     String
+  currency String @default("CRC")
+  timezone String @default("America/Costa_Rica")
 
-  vatRate         Decimal @db.Decimal(5, 4) @default(0.1300) @map("vat_rate")
-  serviceRate     Decimal @db.Decimal(5, 4) @default(0.1000) @map("service_rate")
+  vatRate          Decimal @default(0.1300) @map("vat_rate") @db.Decimal(5, 4)
+  serviceRate      Decimal @default(0.1000) @map("service_rate") @db.Decimal(5, 4)
   pricesIncludeVat Boolean @default(false) @map("prices_include_vat")
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  tables    DiningTable[]
-  sessions  TableSession[]
-  products  Product[]
-  categories Category[] // NUEVO
+  tables         DiningTable[]
+  sessions       TableSession[]
+  products       Product[]
+  categories     Category[]
+  modifiers      Modifier[]
+  modifierGroups ModifierGroup[]
 
   @@map("restaurant")
 }
@@ -113,8 +115,8 @@ model Category {
 }
 
 model Product {
-  id           String @id @default(uuid()) @db.Uuid
-  restaurantId String @map("restaurant_id") @db.Uuid
+  id           String  @id @default(uuid()) @db.Uuid
+  restaurantId String  @map("restaurant_id") @db.Uuid
   categoryId   String? @map("category_id") @db.Uuid // NUEVO (nullable para migrar fácil)
 
   name        String
@@ -122,21 +124,143 @@ model Product {
   price       Decimal  @db.Decimal(12, 2)
   cost        Decimal? @db.Decimal(12, 2)
 
-  imageUrl   String?  @map("image_url") // opcional (útil en menú)
-  sortOrder  Int      @default(0) @map("sort_order") // opcional (orden dentro de categoría)
+  imageUrl  String? @map("image_url") // opcional (útil en menú)
+  sortOrder Int     @default(0) @map("sort_order") // opcional (orden dentro de categoría)
 
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
-  category   Category?  @relation(fields: [categoryId], references: [id]) // NUEVO
-  orderItems OrderItem[]
+  restaurant        Restaurant             @relation(fields: [restaurantId], references: [id])
+  category          Category?              @relation(fields: [categoryId], references: [id]) // NUEVO
+  orderItems        OrderItem[]
+  modifierGroups    ProductModifierGroup[]
+  modifierOverrides ProductModifier[]
 
   @@unique([restaurantId, name])
   @@index([restaurantId])
   @@index([restaurantId, categoryId, sortOrder]) // NUEVO
   @@map("product")
+}
+
+model Modifier {
+  id           String @id @default(uuid()) @db.Uuid
+  restaurantId String @map("restaurant_id") @db.Uuid
+
+  name       String
+  priceDelta Decimal  @default(0) @map("price_delta") @db.Decimal(12, 2)
+  costDelta  Decimal? @map("cost_delta") @db.Decimal(12, 2)
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  // relaciones
+  groups          ModifierGroupItem[]
+  products        ProductModifier[]
+  productDefaults ProductModifierDefault[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId, isActive])
+  @@map("modifier")
+}
+
+model ModifierGroup {
+  id           String @id @default(uuid()) @db.Uuid
+  restaurantId String @map("restaurant_id") @db.Uuid
+
+  name      String
+  sortOrder Int     @default(0) @map("sort_order")
+  isActive  Boolean @default(true) @map("is_active")
+
+  // reglas
+  minSelect Int @default(0) @map("min_select")
+  maxSelect Int @default(99) @map("max_select")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  items    ModifierGroupItem[]
+  products ProductModifierGroup[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId, sortOrder])
+  @@map("modifier_group")
+}
+
+model ModifierGroupItem {
+  id         String @id @default(uuid()) @db.Uuid
+  groupId    String @map("group_id") @db.Uuid
+  modifierId String @map("modifier_id") @db.Uuid
+
+  sortOrder Int     @default(0) @map("sort_order")
+  isActive  Boolean @default(true) @map("is_active")
+
+  group    ModifierGroup @relation(fields: [groupId], references: [id])
+  modifier Modifier      @relation(fields: [modifierId], references: [id])
+
+  @@unique([groupId, modifierId])
+  @@index([groupId, sortOrder])
+  @@index([modifierId])
+  @@map("modifier_group_item")
+}
+
+model ProductModifierGroup {
+  id        String @id @default(uuid()) @db.Uuid
+  productId String @map("product_id") @db.Uuid
+  groupId   String @map("group_id") @db.Uuid
+
+  sortOrder Int     @default(0) @map("sort_order")
+  isActive  Boolean @default(true) @map("is_active")
+
+  product Product       @relation(fields: [productId], references: [id])
+  group   ModifierGroup @relation(fields: [groupId], references: [id])
+
+  defaults ProductModifierDefault[]
+
+  @@unique([productId, groupId])
+  @@index([productId, sortOrder])
+  @@index([groupId])
+  @@map("product_modifier_group")
+}
+
+model ProductModifierDefault {
+  id                     String @id @default(uuid()) @db.Uuid
+  productModifierGroupId String @map("product_modifier_group_id") @db.Uuid
+  modifierId             String @map("modifier_id") @db.Uuid
+
+  qty       Decimal  @default(1) @db.Decimal(10, 3)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  productModifierGroup ProductModifierGroup @relation(fields: [productModifierGroupId], references: [id])
+  modifier             Modifier             @relation(fields: [modifierId], references: [id])
+
+  @@unique([productModifierGroupId, modifierId])
+  @@index([modifierId])
+  @@map("product_modifier_default")
+}
+
+model ProductModifier {
+  id         String @id @default(uuid()) @db.Uuid
+  productId  String @map("product_id") @db.Uuid
+  modifierId String @map("modifier_id") @db.Uuid
+
+  // overrides opcionales
+  priceDeltaOverride Decimal? @map("price_delta_override") @db.Decimal(12, 2)
+  costDeltaOverride  Decimal? @map("cost_delta_override") @db.Decimal(12, 2)
+
+  isActive Boolean @default(true) @map("is_active")
+
+  product  Product  @relation(fields: [productId], references: [id])
+  modifier Modifier @relation(fields: [modifierId], references: [id])
+
+  @@unique([productId, modifierId])
+  @@index([productId])
+  @@index([modifierId])
+  @@map("product_modifier")
 }
 
 model DiningTable {
@@ -254,9 +378,9 @@ model OrderItemModifier {
   nameSnapshot String  @map("name_snapshot")
   priceDelta   Decimal @map("price_delta") @db.Decimal(12, 2)
 
-  costDelta    Decimal? @map("cost_delta") @db.Decimal(12, 2)
+  costDelta Decimal? @map("cost_delta") @db.Decimal(12, 2)
 
-  qty          Decimal @default(1) @db.Decimal(10, 3)
+  qty Decimal @default(1) @db.Decimal(10, 3)
 
   orderItem OrderItem @relation(fields: [orderItemId], references: [id])
 
