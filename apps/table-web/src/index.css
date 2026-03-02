@@ -1,0 +1,45 @@
+@import "tailwindcss";
+@import "./style/tokens.css";
+
+/* Animations plugin */
+@plugin "tailwindcss-animate";
+
+/* Dark mode variant */
+@custom-variant dark (&:is(.dark *));
+
+/* Theme variables */
+:root {
+  --radius: 0.875rem;
+
+  /* Base */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --border: oklch(0.922 0 0);
+
+  /* Brand (cámbialo por restaurante luego) */
+  --brand: oklch(0.62 0.15 250);            /* azul limpio */
+  --brand-foreground: oklch(0.985 0 0);
+
+  /* Surfaces */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+
+  /* Ring */
+  --ring: var(--brand);
+
+  /* Apple-ish shadows */
+  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.06);
+  --shadow-md: 0 8px 24px oklch(0 0 0 / 0.08);
+}
+
+/* Base styles */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+:focus-visible {
+  outline: none;
+}
