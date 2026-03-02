@@ -172,18 +172,29 @@ CREATE TABLE "product_modifier" (
 );
 
 -- CreateTable
-CREATE TABLE "DiningTable" (
+CREATE TABLE "dining_table" (
     "id" UUID NOT NULL,
     "restaurantId" UUID NOT NULL,
     "name" TEXT NOT NULL,
     "status" "TableStatus" NOT NULL DEFAULT 'AVAILABLE',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "DiningTable_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "dining_table_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "TableSession" (
+CREATE TABLE "dining_table_qr" (
+    "id" UUID NOT NULL,
+    "table_id" UUID NOT NULL,
+    "public_code" TEXT NOT NULL,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "dining_table_qr_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "table_session" (
     "id" UUID NOT NULL,
     "restaurantId" UUID NOT NULL,
     "tableId" UUID NOT NULL,
@@ -191,11 +202,11 @@ CREATE TABLE "TableSession" (
     "openedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "closedAt" TIMESTAMP(3),
 
-    CONSTRAINT "TableSession_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "table_session_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "TableSessionTab" (
+CREATE TABLE "table_session_tab" (
     "id" UUID NOT NULL,
     "tableSessionId" UUID NOT NULL,
     "label" TEXT NOT NULL,
@@ -203,11 +214,26 @@ CREATE TABLE "TableSessionTab" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "closedAt" TIMESTAMP(3),
 
-    CONSTRAINT "TableSessionTab_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "table_session_tab_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "Order" (
+CREATE TABLE "session_adjustment" (
+    "id" UUID NOT NULL,
+    "table_session_id" UUID NOT NULL,
+    "tab_id" UUID,
+    "scope" "AdjustmentScope" NOT NULL,
+    "type" "AdjustmentType" NOT NULL,
+    "mode" "AdjustmentMode" NOT NULL,
+    "value" DECIMAL(12,2) NOT NULL,
+    "reason" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "session_adjustment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "order" (
     "id" UUID NOT NULL,
     "restaurantId" UUID NOT NULL,
     "tableSessionId" UUID NOT NULL,
@@ -215,11 +241,11 @@ CREATE TABLE "Order" (
     "status" "OrderStatus" NOT NULL DEFAULT 'DRAFT',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "Order_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "order_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "OrderItem" (
+CREATE TABLE "order_item" (
     "id" UUID NOT NULL,
     "orderId" UUID NOT NULL,
     "productId" UUID,
@@ -229,11 +255,11 @@ CREATE TABLE "OrderItem" (
     "unitCost" DECIMAL(12,2),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "OrderItem_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "order_item_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "OrderItemModifier" (
+CREATE TABLE "order_item_modifier" (
     "id" UUID NOT NULL,
     "orderItemId" UUID NOT NULL,
     "nameSnapshot" TEXT NOT NULL,
@@ -241,23 +267,36 @@ CREATE TABLE "OrderItemModifier" (
     "costDelta" DECIMAL(12,2),
     "qty" DECIMAL(10,3) NOT NULL DEFAULT 1,
 
-    CONSTRAINT "OrderItemModifier_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "order_item_modifier_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "Payment" (
+CREATE TABLE "order_item_allocation" (
     "id" UUID NOT NULL,
-    "tableSessionId" UUID NOT NULL,
+    "order_item_id" UUID NOT NULL,
+    "tab_id" UUID NOT NULL,
+    "qty" DECIMAL(10,3) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "order_item_allocation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "payment" (
+    "id" UUID NOT NULL,
+    "table_session_id" UUID NOT NULL,
+    "tab_id" UUID,
     "amount" DECIMAL(12,2) NOT NULL,
     "method" TEXT NOT NULL,
     "status" "PaymentStatus" NOT NULL DEFAULT 'PAID',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "provider_ref" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "payment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "RestaurantUser" (
+CREATE TABLE "restaurant_user" (
     "id" UUID NOT NULL,
     "restaurantId" UUID NOT NULL,
     "userId" UUID NOT NULL,
@@ -270,7 +309,7 @@ CREATE TABLE "RestaurantUser" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "RestaurantUser_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "restaurant_user_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -307,10 +346,37 @@ CREATE UNIQUE INDEX "product_modifier_default_product_modifier_group_id_modifier
 CREATE UNIQUE INDEX "product_modifier_product_id_modifier_id_key" ON "product_modifier"("product_id", "modifier_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "DiningTable_restaurantId_name_key" ON "DiningTable"("restaurantId", "name");
+CREATE UNIQUE INDEX "dining_table_restaurantId_name_key" ON "dining_table"("restaurantId", "name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "RestaurantUser_restaurantId_userId_key" ON "RestaurantUser"("restaurantId", "userId");
+CREATE UNIQUE INDEX "dining_table_qr_public_code_key" ON "dining_table_qr"("public_code");
+
+-- CreateIndex
+CREATE INDEX "dining_table_qr_table_id_idx" ON "dining_table_qr"("table_id");
+
+-- CreateIndex
+CREATE INDEX "session_adjustment_table_session_id_idx" ON "session_adjustment"("table_session_id");
+
+-- CreateIndex
+CREATE INDEX "session_adjustment_tab_id_idx" ON "session_adjustment"("tab_id");
+
+-- CreateIndex
+CREATE INDEX "order_item_allocation_tab_id_idx" ON "order_item_allocation"("tab_id");
+
+-- CreateIndex
+CREATE INDEX "order_item_allocation_order_item_id_idx" ON "order_item_allocation"("order_item_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "order_item_allocation_order_item_id_tab_id_key" ON "order_item_allocation"("order_item_id", "tab_id");
+
+-- CreateIndex
+CREATE INDEX "payment_table_session_id_idx" ON "payment"("table_session_id");
+
+-- CreateIndex
+CREATE INDEX "payment_tab_id_idx" ON "payment"("tab_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "restaurant_user_restaurantId_userId_key" ON "restaurant_user"("restaurantId", "userId");
 
 -- AddForeignKey
 ALTER TABLE "user" ADD CONSTRAINT "user_created_by_user_id_fkey" FOREIGN KEY ("created_by_user_id") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -370,43 +436,61 @@ ALTER TABLE "product_modifier" ADD CONSTRAINT "product_modifier_product_id_fkey"
 ALTER TABLE "product_modifier" ADD CONSTRAINT "product_modifier_modifier_id_fkey" FOREIGN KEY ("modifier_id") REFERENCES "modifier"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "DiningTable" ADD CONSTRAINT "DiningTable_restaurantId_fkey" FOREIGN KEY ("restaurantId") REFERENCES "restaurant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "dining_table" ADD CONSTRAINT "dining_table_restaurantId_fkey" FOREIGN KEY ("restaurantId") REFERENCES "restaurant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "TableSession" ADD CONSTRAINT "TableSession_restaurantId_fkey" FOREIGN KEY ("restaurantId") REFERENCES "restaurant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "dining_table_qr" ADD CONSTRAINT "dining_table_qr_table_id_fkey" FOREIGN KEY ("table_id") REFERENCES "dining_table"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "TableSession" ADD CONSTRAINT "TableSession_tableId_fkey" FOREIGN KEY ("tableId") REFERENCES "DiningTable"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "table_session" ADD CONSTRAINT "table_session_restaurantId_fkey" FOREIGN KEY ("restaurantId") REFERENCES "restaurant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "TableSessionTab" ADD CONSTRAINT "TableSessionTab_tableSessionId_fkey" FOREIGN KEY ("tableSessionId") REFERENCES "TableSession"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "table_session" ADD CONSTRAINT "table_session_tableId_fkey" FOREIGN KEY ("tableId") REFERENCES "dining_table"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Order" ADD CONSTRAINT "Order_tableSessionId_fkey" FOREIGN KEY ("tableSessionId") REFERENCES "TableSession"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "table_session_tab" ADD CONSTRAINT "table_session_tab_tableSessionId_fkey" FOREIGN KEY ("tableSessionId") REFERENCES "table_session"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "session_adjustment" ADD CONSTRAINT "session_adjustment_table_session_id_fkey" FOREIGN KEY ("table_session_id") REFERENCES "table_session"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_productId_fkey" FOREIGN KEY ("productId") REFERENCES "product"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "session_adjustment" ADD CONSTRAINT "session_adjustment_tab_id_fkey" FOREIGN KEY ("tab_id") REFERENCES "table_session_tab"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "OrderItemModifier" ADD CONSTRAINT "OrderItemModifier_orderItemId_fkey" FOREIGN KEY ("orderItemId") REFERENCES "OrderItem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "order" ADD CONSTRAINT "order_tableSessionId_fkey" FOREIGN KEY ("tableSessionId") REFERENCES "table_session"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Payment" ADD CONSTRAINT "Payment_tableSessionId_fkey" FOREIGN KEY ("tableSessionId") REFERENCES "TableSession"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "order_item" ADD CONSTRAINT "order_item_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "RestaurantUser" ADD CONSTRAINT "RestaurantUser_restaurantId_fkey" FOREIGN KEY ("restaurantId") REFERENCES "restaurant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "order_item" ADD CONSTRAINT "order_item_productId_fkey" FOREIGN KEY ("productId") REFERENCES "product"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "RestaurantUser" ADD CONSTRAINT "RestaurantUser_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "order_item_modifier" ADD CONSTRAINT "order_item_modifier_orderItemId_fkey" FOREIGN KEY ("orderItemId") REFERENCES "order_item"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "RestaurantUser" ADD CONSTRAINT "RestaurantUser_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "order_item_allocation" ADD CONSTRAINT "order_item_allocation_order_item_id_fkey" FOREIGN KEY ("order_item_id") REFERENCES "order_item"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "RestaurantUser" ADD CONSTRAINT "RestaurantUser_updatedByUserId_fkey" FOREIGN KEY ("updatedByUserId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "order_item_allocation" ADD CONSTRAINT "order_item_allocation_tab_id_fkey" FOREIGN KEY ("tab_id") REFERENCES "table_session_tab"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "RestaurantUser" ADD CONSTRAINT "RestaurantUser_revokedByUserId_fkey" FOREIGN KEY ("revokedByUserId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "payment" ADD CONSTRAINT "payment_table_session_id_fkey" FOREIGN KEY ("table_session_id") REFERENCES "table_session"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "payment" ADD CONSTRAINT "payment_tab_id_fkey" FOREIGN KEY ("tab_id") REFERENCES "table_session_tab"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "restaurant_user" ADD CONSTRAINT "restaurant_user_restaurantId_fkey" FOREIGN KEY ("restaurantId") REFERENCES "restaurant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "restaurant_user" ADD CONSTRAINT "restaurant_user_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "restaurant_user" ADD CONSTRAINT "restaurant_user_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "restaurant_user" ADD CONSTRAINT "restaurant_user_updatedByUserId_fkey" FOREIGN KEY ("updatedByUserId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "restaurant_user" ADD CONSTRAINT "restaurant_user_revokedByUserId_fkey" FOREIGN KEY ("revokedByUserId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
