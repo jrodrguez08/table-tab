@@ -1,0 +1,136 @@
+@import "tailwindcss";
+@import "./style/tokens.css";
+
+/* Animations plugin */
+@plugin "tailwindcss-animate";
+
+/* Dark mode variant */
+@custom-variant dark (&:is(.dark *));
+
+/* Theme variables */
+:root {
+  --radius: 0.875rem;
+
+  /* Base */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+
+  --border: oklch(0.922 0 0);
+  --input: var(--border);
+
+  /* Brand */
+  --brand: oklch(0.60 0.10 285); /* muted violet */
+  --brand-foreground: oklch(0.98 0 0);
+
+  /* Shadcn semantic tokens */
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-foreground);
+
+  --secondary: oklch(0.96 0 0);
+  --secondary-foreground: oklch(0.145 0 0);
+
+  --accent: oklch(0.96 0 0);
+  --accent-foreground: oklch(0.145 0 0);
+
+  --destructive: oklch(0.64 0.22 25);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --ring: var(--primary);
+
+  /* Surfaces */
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+
+  /* Optional (used by some shadcn components) */
+  --background-elevated: var(--card);
+
+  /* Apple-ish shadows */
+  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.06);
+  --shadow-md: 0 8px 24px oklch(0 0 0 / 0.08);
+
+  /* Tailwind v4 color mapping (IMPORTANT for shadcn variants like destructive) */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-ring: var(--ring);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-ring: var(--ring);
+
+  --radius: var(--radius);
+}
+
+/* Base styles */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Helps borders look consistent across components */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+}
+
+:focus-visible {
+  outline: none;
+}
